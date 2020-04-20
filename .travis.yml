@@ -1,0 +1,36 @@
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t beakerisgod/docker-react -f Dockerfile.dev . 
+
+script:
+  - docker run -e CI=true beakerisgod/docker-react npm run test
+
+after_success:
+  - docker build -t beakerisgod/multi-client ./client
+  - docker build -t beakerisgod/multi-nginx ./nginx
+  - docker build -t beakerisgod/multi-server ./server
+  - docker build -t beakerisgod/multi-worker ./worker
+  # Log into the docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID"
+  # Take those images and push them to docker hub
+  - docker push beakerisgod/multi-client
+  - docker push beakerisgod/multi-nginx
+  - docker push beakerisgod/multi-server
+  - docker push beakerisgod/multi-worker  
+    
+
+deploy:
+  provider: elasticbeanstalk
+  edge: true
+  region: "us-east-1"
+  app: "multi-docker"
+  env: "multi-docker-env"
+  bucket_name: "elasticbeanstalk-us-east-1-753741818609"
+  bucket_path: "docker-multi"
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY 
